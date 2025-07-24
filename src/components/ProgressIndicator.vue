@@ -16,8 +16,9 @@
     <!-- Progress Bar -->
     <div class="w-full h-1 bg-surface-container rounded-full overflow-hidden">
       <div
-        class="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+        class="h-full bg-primary rounded-full transition-all duration-500 ease-out"
         :style="{ width: `${clampedProgress}%` }"
+        :class="{ 'animate-pulse': isActive }"
       ></div>
     </div>
 
@@ -29,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 interface ProgressIndicatorProps {
   progress: number
@@ -45,6 +46,9 @@ const props = withDefaults(defineProps<ProgressIndicatorProps>(), {
   progress: 0,
 })
 
+// Track the highest progress value to prevent backward movement
+const highestProgress = ref(0)
+
 // Validate and clamp progress value
 const clampedProgress = computed(() => {
   const progress = props.progress
@@ -55,11 +59,44 @@ const clampedProgress = computed(() => {
     return 0
   }
 
-  // Clamp between 0 and 100
-  return Math.min(100, Math.max(0, progress))
+  // Clamp between 0 and 100 and ensure it only moves forward
+  const clamped = Math.min(100, Math.max(0, progress))
+  return Math.max(highestProgress.value, clamped)
 })
+
+// Track if progress is actively updating
+const isActive = computed(() => {
+  return props.progress > 0 && props.progress < 100
+})
+
+// Watch for progress changes to ensure smooth transitions
+watch(
+  () => props.progress,
+  (newProgress) => {
+    if (typeof newProgress === 'number' && !isNaN(newProgress)) {
+      const clamped = Math.min(100, Math.max(0, newProgress))
+      if (clamped > highestProgress.value) {
+        highestProgress.value = clamped
+      }
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>
 /* Component-specific styles can be added here if needed */
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
 </style>

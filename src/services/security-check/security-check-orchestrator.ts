@@ -377,12 +377,58 @@ export class SecurityCheckOrchestrator {
    * Start progress simulation (for UI feedback)
    */
   public startProgressSimulation(callback: (progress: number) => void): void {
+    // Call callback immediately with current progress
+    callback(this.state.progress)
+
     this.interval = window.setInterval(() => {
-      if (this.state.progress < 100) {
-        this.state.progress += Math.random() * 5
+      // Calculate progress based on current step and completed checks
+      const totalSteps = this.checks.length
+      const completedSteps = this.checks.filter((check) => {
+        // Check if this security check has been completed
+        const checkName = check.constructor.name
+        switch (checkName) {
+          case 'DeviceFingerprintCheck':
+            return this.state.deviceFingerprint !== null
+          case 'HSMCheck':
+            return this.state.hsmStatus.isAvailable && this.state.hsmStatus.isInitialized
+          case 'BiometricCheck':
+            return this.state.biometricStatus.isSupported
+          case 'ZKPCheck':
+            return this.state.zkpStatus.isReady
+          case 'CSPCheck':
+            return this.state.cspStatus.isEnabled
+          case 'TLSCheck':
+            return this.state.tlsStatus.isSecure
+          case 'HeadersCheck':
+            return this.state.headersStatus.hasXFrameOptions
+          case 'CryptoCheck':
+            return this.state.cryptoStatus.hasSubtleCrypto
+          case 'StorageCheck':
+            return this.state.storageStatus.hasSecureStorage
+          case 'DOMSkimmingCheck':
+            return this.state.domSkimmingStatus.isProtected
+          case 'CertificatePinningCheck':
+            return this.state.certificatePinningStatus?.isPinned || false
+          case 'GDPRComplianceCheck':
+            return this.state.gdprComplianceStatus?.isCompliant || false
+          case 'ThreatDetectionCheck':
+            return this.state.threatDetectionStatus?.isSecure || false
+          case 'SOC2ComplianceCheck':
+            return this.state.soc2ComplianceStatus?.isCompliant || false
+          default:
+            return false
+        }
+      }).length
+
+      // Calculate progress percentage (0-100)
+      const progressPercentage = Math.min(100, (completedSteps / totalSteps) * 100)
+
+      // Ensure progress only moves forward
+      if (progressPercentage > this.state.progress) {
+        this.state.progress = progressPercentage
         callback(this.state.progress)
       }
-    }, 500)
+    }, 100) // Update more frequently for smoother progress
   }
 
   /**
