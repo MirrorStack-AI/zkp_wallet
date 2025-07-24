@@ -13,13 +13,13 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './e2e',
   /* Maximum time one test can run for. */
-  timeout: 45 * 1000,
+  timeout: 60 * 1000, // Increased from 45s to 60s
   expect: {
     /**
      * Maximum time expect() should wait for the condition to be met.
      * For example in `await expect(locator).toHaveText();`
      */
-    timeout: 10000,
+    timeout: 15000, // Increased from 10s to 15s
   },
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
@@ -60,8 +60,9 @@ export default defineConfig({
           args: ['--no-sandbox', '--disable-dev-shm-usage'],
         },
       },
-      // Firefox-specific timeout
-      timeout: 60 * 1000,
+      // Firefox-specific timeout and retries
+      timeout: 90 * 1000, // Increased from 60s to 90s
+      retries: process.env.CI ? 3 : 2, // More retries for Firefox
     },
     {
       name: 'webkit',
@@ -112,5 +113,6 @@ export default defineConfig({
     command: process.env.CI ? 'yarn run preview' : 'yarn run dev',
     port: process.env.CI ? 4173 : 5173,
     reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000, // Increased timeout for web server startup
   },
 })

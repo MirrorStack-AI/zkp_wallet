@@ -19,7 +19,7 @@
           <ProgressIndicator
             :progress="securityState.progress"
             label="Security Check"
-            :description="getCurrentStepDescription()"
+            :description="getCurrentStepDescription(securityState.currentStep)"
             :show-label="false"
             data-testid="progress-indicator"
           />
@@ -115,6 +115,10 @@ const SECURITY_CHECK_CONFIG = {
   enableCrypto: true,
   enableStorage: true,
   enableDOMProtection: true,
+  enableCertificatePinning: true,
+  enableGDPRCompliance: true,
+  enableThreatDetection: true,
+  enableSOC2Compliance: true,
   timeoutMs: 30000,
   retryAttempts: 3,
   delayMs: STATE_UPDATE_INTERVAL, // Overall delay for all security checks
@@ -207,6 +211,34 @@ const securitySteps = computed(() => [
     successText: 'Protected',
     failureText: 'Vulnerable',
   },
+  {
+    key: 'certificate-pinning',
+    enum: SecurityCheckStep.CERTIFICATE_PINNING,
+    label: 'Certificate Pinning',
+    successText: 'Active',
+    failureText: 'Inactive',
+  },
+  {
+    key: 'gdpr-compliance',
+    enum: SecurityCheckStep.GDPR_COMPLIANCE,
+    label: 'GDPR Compliance',
+    successText: 'Compliant',
+    failureText: 'Non-Compliant',
+  },
+  {
+    key: 'threat-detection',
+    enum: SecurityCheckStep.THREAT_DETECTION,
+    label: 'Threat Detection',
+    successText: 'Active',
+    failureText: 'Inactive',
+  },
+  {
+    key: 'soc2-compliance',
+    enum: SecurityCheckStep.SOC2_COMPLIANCE,
+    label: 'SOC 2 Compliance',
+    successText: 'Compliant',
+    failureText: 'Non-Compliant',
+  },
 ])
 
 // Track completed steps and their results
@@ -289,10 +321,11 @@ const updateStepDisplayFromState = () => {
     )
   }
 
-  // HSM is completed when we've moved past it
+  // HSM is completed when we've moved past it AND it has been tested
   if (
     currentStep !== SecurityCheckStep.HSM_VERIFICATION &&
-    currentStep !== SecurityCheckStep.DEVICE_FINGERPRINTING
+    currentStep !== SecurityCheckStep.DEVICE_FINGERPRINTING &&
+    currentStep !== SecurityCheckStep.INITIALIZING
   ) {
     completedSteps.value.add(SecurityCheckStep.HSM_VERIFICATION)
     stepResults.value.set(
@@ -301,11 +334,12 @@ const updateStepDisplayFromState = () => {
     )
   }
 
-  // Biometric is completed when we've moved past it
+  // Biometric is completed when we've moved past it AND it has been tested
   if (
     currentStep !== SecurityCheckStep.BIOMETRIC_CHECK &&
     currentStep !== SecurityCheckStep.DEVICE_FINGERPRINTING &&
-    currentStep !== SecurityCheckStep.HSM_VERIFICATION
+    currentStep !== SecurityCheckStep.HSM_VERIFICATION &&
+    currentStep !== SecurityCheckStep.INITIALIZING
   ) {
     completedSteps.value.add(SecurityCheckStep.BIOMETRIC_CHECK)
     stepResults.value.set(
@@ -314,12 +348,13 @@ const updateStepDisplayFromState = () => {
     )
   }
 
-  // ZKP is completed when we've moved past it
+  // ZKP is completed when we've moved past it AND it has been tested
   if (
     currentStep !== SecurityCheckStep.ZKP_INITIALIZATION &&
     currentStep !== SecurityCheckStep.DEVICE_FINGERPRINTING &&
     currentStep !== SecurityCheckStep.HSM_VERIFICATION &&
-    currentStep !== SecurityCheckStep.BIOMETRIC_CHECK
+    currentStep !== SecurityCheckStep.BIOMETRIC_CHECK &&
+    currentStep !== SecurityCheckStep.INITIALIZING
   ) {
     completedSteps.value.add(SecurityCheckStep.ZKP_INITIALIZATION)
     stepResults.value.set(
@@ -328,13 +363,14 @@ const updateStepDisplayFromState = () => {
     )
   }
 
-  // CSP is completed when we've moved past it
+  // CSP is completed when we've moved past it AND it has been tested
   if (
     currentStep !== SecurityCheckStep.CSP_VALIDATION &&
     currentStep !== SecurityCheckStep.DEVICE_FINGERPRINTING &&
     currentStep !== SecurityCheckStep.HSM_VERIFICATION &&
     currentStep !== SecurityCheckStep.BIOMETRIC_CHECK &&
-    currentStep !== SecurityCheckStep.ZKP_INITIALIZATION
+    currentStep !== SecurityCheckStep.ZKP_INITIALIZATION &&
+    currentStep !== SecurityCheckStep.INITIALIZING
   ) {
     completedSteps.value.add(SecurityCheckStep.CSP_VALIDATION)
     stepResults.value.set(
@@ -343,14 +379,15 @@ const updateStepDisplayFromState = () => {
     )
   }
 
-  // TLS is completed when we've moved past it
+  // TLS is completed when we've moved past it AND it has been tested
   if (
     currentStep !== SecurityCheckStep.TLS_CHECK &&
     currentStep !== SecurityCheckStep.DEVICE_FINGERPRINTING &&
     currentStep !== SecurityCheckStep.HSM_VERIFICATION &&
     currentStep !== SecurityCheckStep.BIOMETRIC_CHECK &&
     currentStep !== SecurityCheckStep.ZKP_INITIALIZATION &&
-    currentStep !== SecurityCheckStep.CSP_VALIDATION
+    currentStep !== SecurityCheckStep.CSP_VALIDATION &&
+    currentStep !== SecurityCheckStep.INITIALIZING
   ) {
     completedSteps.value.add(SecurityCheckStep.TLS_CHECK)
     stepResults.value.set(
@@ -359,7 +396,7 @@ const updateStepDisplayFromState = () => {
     )
   }
 
-  // Headers is completed when we've moved past it
+  // Headers is completed when we've moved past it AND it has been tested
   if (
     currentStep !== SecurityCheckStep.HEADERS_CHECK &&
     currentStep !== SecurityCheckStep.DEVICE_FINGERPRINTING &&
@@ -367,7 +404,8 @@ const updateStepDisplayFromState = () => {
     currentStep !== SecurityCheckStep.BIOMETRIC_CHECK &&
     currentStep !== SecurityCheckStep.ZKP_INITIALIZATION &&
     currentStep !== SecurityCheckStep.CSP_VALIDATION &&
-    currentStep !== SecurityCheckStep.TLS_CHECK
+    currentStep !== SecurityCheckStep.TLS_CHECK &&
+    currentStep !== SecurityCheckStep.INITIALIZING
   ) {
     completedSteps.value.add(SecurityCheckStep.HEADERS_CHECK)
     stepResults.value.set(
@@ -376,7 +414,7 @@ const updateStepDisplayFromState = () => {
     )
   }
 
-  // Crypto is completed when we've moved past it
+  // Crypto is completed when we've moved past it AND it has been tested
   if (
     currentStep !== SecurityCheckStep.CRYPTO_CHECK &&
     currentStep !== SecurityCheckStep.DEVICE_FINGERPRINTING &&
@@ -385,7 +423,8 @@ const updateStepDisplayFromState = () => {
     currentStep !== SecurityCheckStep.ZKP_INITIALIZATION &&
     currentStep !== SecurityCheckStep.CSP_VALIDATION &&
     currentStep !== SecurityCheckStep.TLS_CHECK &&
-    currentStep !== SecurityCheckStep.HEADERS_CHECK
+    currentStep !== SecurityCheckStep.HEADERS_CHECK &&
+    currentStep !== SecurityCheckStep.INITIALIZING
   ) {
     completedSteps.value.add(SecurityCheckStep.CRYPTO_CHECK)
     stepResults.value.set(
@@ -394,7 +433,7 @@ const updateStepDisplayFromState = () => {
     )
   }
 
-  // Storage is completed when we've moved past it
+  // Storage is completed when we've moved past it AND it has been tested
   if (
     currentStep !== SecurityCheckStep.STORAGE_CHECK &&
     currentStep !== SecurityCheckStep.DEVICE_FINGERPRINTING &&
@@ -404,7 +443,8 @@ const updateStepDisplayFromState = () => {
     currentStep !== SecurityCheckStep.CSP_VALIDATION &&
     currentStep !== SecurityCheckStep.TLS_CHECK &&
     currentStep !== SecurityCheckStep.HEADERS_CHECK &&
-    currentStep !== SecurityCheckStep.CRYPTO_CHECK
+    currentStep !== SecurityCheckStep.CRYPTO_CHECK &&
+    currentStep !== SecurityCheckStep.INITIALIZING
   ) {
     completedSteps.value.add(SecurityCheckStep.STORAGE_CHECK)
     stepResults.value.set(
@@ -413,7 +453,7 @@ const updateStepDisplayFromState = () => {
     )
   }
 
-  // DOM Protection is completed when we've moved past it
+  // DOM Protection is completed when we've moved past it AND it has been tested
   if (
     currentStep !== SecurityCheckStep.DOM_PROTECTION &&
     currentStep !== SecurityCheckStep.DEVICE_FINGERPRINTING &&
@@ -424,7 +464,8 @@ const updateStepDisplayFromState = () => {
     currentStep !== SecurityCheckStep.TLS_CHECK &&
     currentStep !== SecurityCheckStep.HEADERS_CHECK &&
     currentStep !== SecurityCheckStep.CRYPTO_CHECK &&
-    currentStep !== SecurityCheckStep.STORAGE_CHECK
+    currentStep !== SecurityCheckStep.STORAGE_CHECK &&
+    currentStep !== SecurityCheckStep.INITIALIZING
   ) {
     completedSteps.value.add(SecurityCheckStep.DOM_PROTECTION)
     stepResults.value.set(
@@ -432,41 +473,141 @@ const updateStepDisplayFromState = () => {
       securityState.value.domSkimmingStatus?.isProtected || false,
     )
   }
+
+  // Certificate Pinning is completed when we've moved past TLS check AND it has been tested
+  if (
+    currentStep !== SecurityCheckStep.CERTIFICATE_PINNING &&
+    currentStep !== SecurityCheckStep.DEVICE_FINGERPRINTING &&
+    currentStep !== SecurityCheckStep.HSM_VERIFICATION &&
+    currentStep !== SecurityCheckStep.BIOMETRIC_CHECK &&
+    currentStep !== SecurityCheckStep.ZKP_INITIALIZATION &&
+    currentStep !== SecurityCheckStep.CSP_VALIDATION &&
+    currentStep !== SecurityCheckStep.TLS_CHECK &&
+    currentStep !== SecurityCheckStep.HEADERS_CHECK &&
+    currentStep !== SecurityCheckStep.CRYPTO_CHECK &&
+    currentStep !== SecurityCheckStep.STORAGE_CHECK &&
+    currentStep !== SecurityCheckStep.DOM_PROTECTION &&
+    currentStep !== SecurityCheckStep.INITIALIZING
+  ) {
+    completedSteps.value.add(SecurityCheckStep.CERTIFICATE_PINNING)
+    stepResults.value.set(
+      SecurityCheckStep.CERTIFICATE_PINNING,
+      securityState.value.certificatePinningStatus?.isPinned || false,
+    )
+  }
+
+  // GDPR Compliance is completed when we've moved past storage check AND it has been tested
+  if (
+    currentStep !== SecurityCheckStep.GDPR_COMPLIANCE &&
+    currentStep !== SecurityCheckStep.DEVICE_FINGERPRINTING &&
+    currentStep !== SecurityCheckStep.HSM_VERIFICATION &&
+    currentStep !== SecurityCheckStep.BIOMETRIC_CHECK &&
+    currentStep !== SecurityCheckStep.ZKP_INITIALIZATION &&
+    currentStep !== SecurityCheckStep.CSP_VALIDATION &&
+    currentStep !== SecurityCheckStep.TLS_CHECK &&
+    currentStep !== SecurityCheckStep.HEADERS_CHECK &&
+    currentStep !== SecurityCheckStep.CRYPTO_CHECK &&
+    currentStep !== SecurityCheckStep.STORAGE_CHECK &&
+    currentStep !== SecurityCheckStep.DOM_PROTECTION &&
+    currentStep !== SecurityCheckStep.CERTIFICATE_PINNING &&
+    currentStep !== SecurityCheckStep.INITIALIZING
+  ) {
+    completedSteps.value.add(SecurityCheckStep.GDPR_COMPLIANCE)
+    stepResults.value.set(
+      SecurityCheckStep.GDPR_COMPLIANCE,
+      securityState.value.gdprComplianceStatus?.isCompliant || false,
+    )
+  }
+
+  // Threat Detection is completed when we've moved past crypto check AND it has been tested
+  if (
+    currentStep !== SecurityCheckStep.THREAT_DETECTION &&
+    currentStep !== SecurityCheckStep.DEVICE_FINGERPRINTING &&
+    currentStep !== SecurityCheckStep.HSM_VERIFICATION &&
+    currentStep !== SecurityCheckStep.BIOMETRIC_CHECK &&
+    currentStep !== SecurityCheckStep.ZKP_INITIALIZATION &&
+    currentStep !== SecurityCheckStep.CSP_VALIDATION &&
+    currentStep !== SecurityCheckStep.TLS_CHECK &&
+    currentStep !== SecurityCheckStep.HEADERS_CHECK &&
+    currentStep !== SecurityCheckStep.CRYPTO_CHECK &&
+    currentStep !== SecurityCheckStep.STORAGE_CHECK &&
+    currentStep !== SecurityCheckStep.DOM_PROTECTION &&
+    currentStep !== SecurityCheckStep.CERTIFICATE_PINNING &&
+    currentStep !== SecurityCheckStep.GDPR_COMPLIANCE &&
+    currentStep !== SecurityCheckStep.INITIALIZING
+  ) {
+    completedSteps.value.add(SecurityCheckStep.THREAT_DETECTION)
+    stepResults.value.set(
+      SecurityCheckStep.THREAT_DETECTION,
+      securityState.value.threatDetectionStatus?.isSecure || false,
+    )
+  }
+
+  // SOC 2 Compliance is completed when we've moved past storage check AND it has been tested
+  if (
+    currentStep !== SecurityCheckStep.SOC2_COMPLIANCE &&
+    currentStep !== SecurityCheckStep.DEVICE_FINGERPRINTING &&
+    currentStep !== SecurityCheckStep.HSM_VERIFICATION &&
+    currentStep !== SecurityCheckStep.BIOMETRIC_CHECK &&
+    currentStep !== SecurityCheckStep.ZKP_INITIALIZATION &&
+    currentStep !== SecurityCheckStep.CSP_VALIDATION &&
+    currentStep !== SecurityCheckStep.TLS_CHECK &&
+    currentStep !== SecurityCheckStep.HEADERS_CHECK &&
+    currentStep !== SecurityCheckStep.CRYPTO_CHECK &&
+    currentStep !== SecurityCheckStep.STORAGE_CHECK &&
+    currentStep !== SecurityCheckStep.DOM_PROTECTION &&
+    currentStep !== SecurityCheckStep.CERTIFICATE_PINNING &&
+    currentStep !== SecurityCheckStep.GDPR_COMPLIANCE &&
+    currentStep !== SecurityCheckStep.THREAT_DETECTION &&
+    currentStep !== SecurityCheckStep.INITIALIZING
+  ) {
+    completedSteps.value.add(SecurityCheckStep.SOC2_COMPLIANCE)
+    stepResults.value.set(
+      SecurityCheckStep.SOC2_COMPLIANCE,
+      securityState.value.soc2ComplianceStatus?.isCompliant || false,
+    )
+  }
 }
 
-// Helper functions
-const getCurrentStepDescription = (): string => {
-  const step = securityState.value.currentStep
-
+/**
+ * Get description for current step
+ */
+const getCurrentStepDescription = (step: string): string => {
   switch (step) {
     case 'initializing':
-      return 'Initializing security systems...'
+      return 'Initializing security checks...'
     case 'device_fingerprinting':
-      return 'Verifying device fingerprint and HSM...'
+      return 'Checking device fingerprint...'
     case 'hsm_verification':
-      return 'Checking hardware security module...'
+      return 'Verifying hardware security...'
     case 'biometric_check':
-      return 'Verifying biometric authentication...'
+      return 'Testing biometric auth...'
     case 'zkp_initialization':
-      return 'Initializing zero-knowledge proofs...'
+      return 'Initializing ZKP...'
     case 'csp_validation':
-      return 'Validating content security policy...'
+      return 'Validating CSP policy...'
     case 'tls_check':
-      return 'Checking TLS/HTTPS security...'
+      return 'Checking TLS & certificates...'
     case 'headers_check':
-      return 'Verifying security headers...'
+      return 'Validating security headers...'
     case 'crypto_check':
-      return 'Testing cryptographic capabilities...'
+      return 'Testing crypto & threats...'
     case 'storage_check':
       return 'Checking secure storage...'
     case 'dom_protection':
-      return 'Checking DOM protection...'
+      return 'Protecting against DOM attacks...'
+    case 'certificate_pinning':
+      return 'Validating certificate pinning...'
+    case 'gdpr_compliance':
+      return 'Checking GDPR compliance...'
+    case 'threat_detection':
+      return 'Analyzing threat patterns...'
+    case 'soc2_compliance':
+      return 'Verifying SOC 2 compliance...'
     case 'completed':
       return 'Security verification completed'
-    case 'error':
-      return 'Security check encountered an error'
     default:
-      return 'Verifying your device for enhanced security'
+      return 'Running security checks...'
   }
 }
 

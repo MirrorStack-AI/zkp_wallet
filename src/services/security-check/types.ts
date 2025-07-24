@@ -18,6 +18,10 @@ export interface SecurityCheckState {
   cryptoStatus: CryptoStatus
   storageStatus: StorageStatus
   domSkimmingStatus: DOMSkimmingStatus
+  certificatePinningStatus?: CertificatePinningStatus
+  gdprComplianceStatus?: GDPRComplianceStatus
+  threatDetectionStatus?: ThreatDetectionStatus
+  soc2ComplianceStatus?: SOC2ComplianceStatus
 }
 
 export interface SecurityCheckConfig {
@@ -31,6 +35,10 @@ export interface SecurityCheckConfig {
   enableCrypto: boolean
   enableStorage: boolean
   enableDOMProtection: boolean
+  enableCertificatePinning: boolean
+  enableGDPRCompliance: boolean
+  enableThreatDetection: boolean
+  enableSOC2Compliance: boolean
   timeoutMs: number
   retryAttempts: number
   delayMs: number
@@ -109,6 +117,45 @@ export interface DOMSkimmingStatus {
   error?: string
 }
 
+export interface CertificatePinningStatus {
+  isPinned: boolean
+  hasValidCertificate: boolean
+  hasSecureConnection: boolean
+  fingerprintVerified: boolean
+  error?: string
+}
+
+export interface GDPRComplianceStatus {
+  isCompliant: boolean
+  hasDataMinimization: boolean
+  hasConsentManagement: boolean
+  hasDataPortability: boolean
+  hasRightToErasure: boolean
+  hasPrivacyByDesign: boolean
+  error?: string
+}
+
+export interface ThreatDetectionStatus {
+  isSecure: boolean
+  hasAnomalyDetection: boolean
+  hasBehavioralAnalysis: boolean
+  hasThreatIntelligence: boolean
+  threatLevel: 'low' | 'medium' | 'high' | 'critical'
+  detectedThreats: string[]
+  error?: string
+}
+
+export interface SOC2ComplianceStatus {
+  isCompliant: boolean
+  hasSecurityControls: boolean
+  hasAvailabilityControls: boolean
+  hasProcessingIntegrity: boolean
+  hasConfidentialityControls: boolean
+  hasPrivacyControls: boolean
+  auditTrail: string[]
+  error?: string
+}
+
 export enum SecurityCheckStep {
   INITIALIZING = 'initializing',
   DEVICE_FINGERPRINTING = 'device_fingerprinting',
@@ -121,6 +168,10 @@ export enum SecurityCheckStep {
   CRYPTO_CHECK = 'crypto_check',
   STORAGE_CHECK = 'storage_check',
   DOM_PROTECTION = 'dom_protection',
+  CERTIFICATE_PINNING = 'certificate_pinning',
+  GDPR_COMPLIANCE = 'gdpr_compliance',
+  THREAT_DETECTION = 'threat_detection',
+  SOC2_COMPLIANCE = 'soc2_compliance',
   COMPLETED = 'completed',
   ERROR = 'error',
 }

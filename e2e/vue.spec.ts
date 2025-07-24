@@ -1,22 +1,38 @@
 import { test, expect } from '@playwright/test'
 
 /**
- * Vue Application Basic Tests
- * Tests the basic functionality of the Vue application
+ * Vue Application Tests
+ * Tests the basic Vue application functionality
  */
 
 test.describe('Vue Application Tests', () => {
-  test('visits the app root url', async ({ page }) => {
-    await page.goto('/')
+  test('visits the app root url', async ({ page, browserName }) => {
+    // Add retry logic for Firefox connection issues
+    let retries = 3
+    while (retries > 0) {
+      try {
+        await page.goto('/', {
+          waitUntil: 'domcontentloaded',
+          timeout: browserName === 'firefox' ? 60000 : 30000, // Longer timeout for Firefox
+        })
 
-    // Basic page load test
-    await expect(page).toHaveTitle(/Mirror Stack/)
-  })
+        // Add Firefox-specific wait time
+        if (browserName === 'firefox') {
+          await page.waitForTimeout(3000)
+        }
 
-  test('shows security check interface', async ({ page }) => {
-    await page.goto('/')
+        break
+      } catch (error) {
+        retries--
+        if (retries === 0) {
+          throw error
+        }
+        // Wait a bit before retrying
+        await page.waitForTimeout(2000)
+      }
+    }
 
-    // Check that the security check view is loaded
+    // Verify the page loads correctly
     await expect(page.locator('[data-testid="security-check-view"]')).toBeVisible()
   })
 

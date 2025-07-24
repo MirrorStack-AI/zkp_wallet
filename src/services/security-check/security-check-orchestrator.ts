@@ -16,6 +16,10 @@ import { HeadersCheck } from './headers-check'
 import { CryptoCheck } from './crypto-check'
 import { StorageCheck } from './storage-check'
 import { DOMSkimmingCheck } from './dom-skimming-check'
+import { CertificatePinningCheck } from './certificate-pinning'
+import { GDPRComplianceCheck } from './gdpr-compliance'
+import { ThreatDetectionCheck } from './threat-detection'
+import { SOC2ComplianceCheck } from './soc2-compliance'
 
 export class SecurityCheckOrchestrator {
   private config: SecurityCheckConfig
@@ -81,6 +85,10 @@ export class SecurityCheckOrchestrator {
       'enableCrypto',
       'enableStorage',
       'enableDOMProtection',
+      'enableCertificatePinning',
+      'enableGDPRCompliance',
+      'enableThreatDetection',
+      'enableSOC2Compliance',
     ]
 
     for (const flag of booleanFlags) {
@@ -181,6 +189,10 @@ export class SecurityCheckOrchestrator {
       new CryptoCheck(this.config, this.state),
       new StorageCheck(this.config, this.state),
       new DOMSkimmingCheck(this.config, this.state),
+      new CertificatePinningCheck(this.config, this.state),
+      new GDPRComplianceCheck(this.config, this.state),
+      new ThreatDetectionCheck(this.config, this.state),
+      new SOC2ComplianceCheck(this.config, this.state),
     ]
 
     // Validate all checks were created successfully

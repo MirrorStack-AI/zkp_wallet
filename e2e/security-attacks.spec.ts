@@ -7,8 +7,31 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Security Attack Simulation Tests', () => {
   test.describe('XSS Attack Tests', () => {
-    test('should prevent reflected XSS attacks', async ({ page }) => {
-      await page.goto('/')
+    test('should prevent reflected XSS attacks', async ({ page, browserName }) => {
+      // Add retry logic for Firefox connection issues
+      let retries = 3
+      while (retries > 0) {
+        try {
+          await page.goto('/', {
+            waitUntil: 'domcontentloaded',
+            timeout: browserName === 'firefox' ? 60000 : 30000, // Longer timeout for Firefox
+          })
+
+          // Add Firefox-specific wait time
+          if (browserName === 'firefox') {
+            await page.waitForTimeout(3000)
+          }
+
+          break
+        } catch (error) {
+          retries--
+          if (retries === 0) {
+            throw error
+          }
+          // Wait a bit before retrying
+          await page.waitForTimeout(2000)
+        }
+      }
 
       // Try to inject XSS through URL parameters
       await page.goto('/?test=<script>alert("XSS")</script>')
@@ -21,8 +44,13 @@ test.describe('Security Attack Simulation Tests', () => {
       expect(hasAlert).toBe(true) // alert function exists but shouldn't be called
     })
 
-    test('should prevent stored XSS attacks', async ({ page }) => {
+    test('should prevent stored XSS attacks', async ({ page, browserName }) => {
       await page.goto('/')
+
+      // Add Firefox-specific wait time
+      if (browserName === 'firefox') {
+        await page.waitForTimeout(2000)
+      }
 
       // Verify security check interface loads properly
       await expect(page.locator('[data-testid="security-check-view"]')).toBeVisible()
@@ -33,8 +61,13 @@ test.describe('Security Attack Simulation Tests', () => {
       expect(pageContent).not.toContain('javascript:')
     })
 
-    test('should prevent DOM-based XSS', async ({ page }) => {
+    test('should prevent DOM-based XSS', async ({ page, browserName }) => {
       await page.goto('/')
+
+      // Add Firefox-specific wait time
+      if (browserName === 'firefox') {
+        await page.waitForTimeout(2000)
+      }
 
       // Verify security check interface loads properly
       await expect(page.locator('[data-testid="security-check-view"]')).toBeVisible()

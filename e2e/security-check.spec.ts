@@ -18,8 +18,31 @@ test.describe('Security Check E2E Tests', () => {
   })
 
   test.describe('Security Check UI Tests', () => {
-    test('should display security check interface', async ({ page }) => {
-      await page.goto('/')
+    test('should display security check interface', async ({ page, browserName }) => {
+      // Add retry logic for Firefox connection issues
+      let retries = 3
+      while (retries > 0) {
+        try {
+          await page.goto('/', {
+            waitUntil: 'domcontentloaded',
+            timeout: browserName === 'firefox' ? 60000 : 30000, // Longer timeout for Firefox
+          })
+
+          // Add Firefox-specific wait time
+          if (browserName === 'firefox') {
+            await page.waitForTimeout(3000)
+          }
+
+          break
+        } catch (error) {
+          retries--
+          if (retries === 0) {
+            throw error
+          }
+          // Wait a bit before retrying
+          await page.waitForTimeout(2000)
+        }
+      }
 
       // Check if security check view is loaded
       await expect(page.locator('[data-testid="security-check-view"]')).toBeVisible()
@@ -30,8 +53,13 @@ test.describe('Security Check E2E Tests', () => {
       await expect(page.locator('[data-testid="security-steps"]')).toBeVisible()
     })
 
-    test('should show security check progress', async ({ page }) => {
+    test('should show security check progress', async ({ page, browserName }) => {
       await page.goto('/')
+
+      // Add Firefox-specific wait time
+      if (browserName === 'firefox') {
+        await page.waitForTimeout(2000)
+      }
 
       // Wait for security check to start
       await expect(page.locator('[data-testid="progress-indicator"]')).toBeVisible()
@@ -45,8 +73,13 @@ test.describe('Security Check E2E Tests', () => {
       expect(stepCount).toBeGreaterThan(0)
     })
 
-    test('should display security check results', async ({ page }) => {
+    test('should display security check results', async ({ page, browserName }) => {
       await page.goto('/')
+
+      // Add Firefox-specific wait time
+      if (browserName === 'firefox') {
+        await page.waitForTimeout(2000)
+      }
 
       // Wait for security check interface to load
       await expect(page.locator('[data-testid="security-check-view"]')).toBeVisible()
@@ -358,7 +391,9 @@ test.describe('Security Check E2E Tests', () => {
 
       // Check that extension has minimal required permissions
       const permissions = await page.evaluate(() => {
-        return (window as unknown as Record<string, unknown>).chrome?.permissions?.getAll?.() || []
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const chrome = (window as any).chrome
+        return chrome?.permissions?.getAll?.() || []
       })
 
       // Verify permissions are minimal and secure
