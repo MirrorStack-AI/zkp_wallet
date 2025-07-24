@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MirrorStack Wallet - Settings</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: 'Inter', sans-serif;
+      background-color: #f6fafe;
+      color: #374151;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    
+    .header {
+      background-color: #236488;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    
+    .content {
+      padding: 30px;
+    }
+    
+    .section {
+      margin-bottom: 30px;
+    }
+    
+    .section h2 {
+      color: #236488;
+      margin-bottom: 16px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .setting-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .setting-item:last-child {
+      border-bottom: none;
+    }
+    
+    .setting-label {
+      font-weight: 500;
+      color: #374151;
+    }
+    
+    .setting-description {
+      font-size: 14px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      width: 50px;
+      height: 24px;
+      background-color: #d1d5db;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .toggle-switch.active {
+      background-color: #236488;
+    }
+    
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background-color: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    
+    .toggle-switch.active::after {
+      transform: translateX(26px);
+    }
+    
+    .button {
+      background-color: #236488;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    
+    .button:hover {
+      background-color: #1e4a6b;
+    }
+    
+    .button.secondary {
+      background-color: #f3f4f6;
+      color: #374151;
+    }
+    
+    .button.secondary:hover {
+      background-color: #e5e7eb;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    
+    .status-active {
+      background-color: #059669;
+    }
+    
+    .status-inactive {
+      background-color: #dc2626;
+    }
+    
+    .status-warning {
+      background-color: #d97706;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>MirrorStack Wallet Settings</h1>
+    </div>
+    
+    <div class="content">
+      <!-- Security Settings -->
+      <div class="section">
+        <h2>Security Settings</h2>
+        
+        <div class="setting-item">
+          <div>
+            <div class="setting-label">
+              <span class="status-indicator status-active" id="hsm-status"></span>
+              Hardware Security Module (HSM)
+            </div>
+            <div class="setting-description">
+              Enable hardware-backed security for key storage and operations
+            </div>
+          </div>
+          <div class="toggle-switch" id="hsm-toggle"></div>
+        </div>
+        
+        <div class="setting-item">
+          <div>
+            <div class="setting-label">
+              <span class="status-indicator status-active" id="biometric-status"></span>
+              Biometric Authentication
+            </div>
+            <div class="setting-description">
+              Use fingerprint or face recognition for authentication
+            </div>
+          </div>
+          <div class="toggle-switch" id="biometric-toggle"></div>
+        </div>
+        
+        <div class="setting-item">
+          <div>
+            <div class="setting-label">
+              <span class="status-indicator status-active" id="fingerprint-status"></span>
+              Device Fingerprinting
+            </div>
+            <div class="setting-description">
+              Verify device characteristics for enhanced security
+            </div>
+          </div>
+          <div class="toggle-switch" id="fingerprint-toggle"></div>
+        </div>
+        
+        <div class="setting-item">
+          <div>
+            <div class="setting-label">
+              <span class="status-indicator status-active" id="zkp-status"></span>
+              Zero-Knowledge Proof (ZKP)
+            </div>
+            <div class="setting-description">
+              Enable privacy-preserving authentication
+            </div>
+          </div>
+          <div class="toggle-switch" id="zkp-toggle"></div>
+        </div>
+      </div>
+      
+      <!-- General Settings -->
+      <div class="section">
+        <h2>General Settings</h2>
+        
+        <div class="setting-item">
+          <div>
+            <div class="setting-label">Auto-Lock Timeout</div>
+            <div class="setting-description">
+              Automatically lock wallet after inactivity
+            </div>
+          </div>
+          <select id="auto-lock-timeout" style="padding: 6px; border-radius: 4px; border: 1px solid #d1d5db;">
+            <option value="300000">5 minutes</option>
+            <option value="600000">10 minutes</option>
+            <option value="1800000">30 minutes</option>
+            <option value="3600000">1 hour</option>
+            <option value="0">Never</option>
+          </select>
+        </div>
+        
+        <div class="setting-item">
+          <div>
+            <div class="setting-label">Theme</div>
+            <div class="setting-description">
+              Choose your preferred theme
+            </div>
+          </div>
+          <select id="theme-select" style="padding: 6px; border-radius: 4px; border: 1px solid #d1d5db;">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="auto">Auto</option>
+          </select>
+        </div>
+      </div>
+      
+      <!-- Actions -->
+      <div class="section">
+        <h2>Actions</h2>
+        
+        <button class="button" id="run-security-check">
+          Run Security Check
+        </button>
+        
+        <button class="button secondary" id="export-settings">
+          Export Settings
+        </button>
+        
+        <button class="button secondary" id="import-settings">
+          Import Settings
+        </button>
+        
+        <button class="button secondary" id="reset-settings">
+          Reset to Defaults
+        </button>
+      </div>
+      
+      <!-- Status -->
+      <div class="section">
+        <h2>System Status</h2>
+        
+        <div class="setting-item">
+          <div>
+            <div class="setting-label">Extension Version</div>
+            <div class="setting-description" id="extension-version">Loading...</div>
+          </div>
+        </div>
+        
+        <div class="setting-item">
+          <div>
+            <div class="setting-label">Last Security Check</div>
+            <div class="setting-description" id="last-security-check">Loading...</div>
+          </div>
+        </div>
+        
+        <div class="setting-item">
+          <div>
+            <div class="setting-label">Overall Security Status</div>
+            <div class="setting-description" id="overall-security-status">Loading...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="options.js"></script>
+</body>
+</html> 
+ 
+ 
+ 

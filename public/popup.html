@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MirrorStack Wallet</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,11 +14,25 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
     />
-    <link href="/src/styles.css" rel="stylesheet" />
-    <title>Mirror Stack</title>
+    <link rel="stylesheet" href="popup.css" />
+    <style>
+      html,
+      body {
+        width: 400px;
+        height: auto;
+        margin: 0;
+        padding: 0;
+        font-family: 'Shantell Sans', system-ui, sans-serif;
+        background: transparent;
+      }
+
+      #app {
+        background: var(--color-surface);
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="popup.js"></script>
   </body>
 </html>

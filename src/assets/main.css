@@ -1,35 +1,32 @@
-@import './base.css';
+@import 'tailwindcss';
 
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
-}
+@import './material-theme.css';
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
-}
-
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
+/* Optional: Add any additional base styles */
+@layer base {
+  html {
+    @apply transition-colors duration-500 ease-out;
   }
-}
-
-@media (min-width: 1024px) {
+  html,
   body {
-    display: flex;
-    place-items: center;
+    background-color: var(--color-background);
+    color: var(--color-on-background);
   }
 
+  /* Main application container */
   #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
+    min-height: 100vh;
+    background-color: var(--color-surface);
+    color: var(--color-on-surface);
+  }
+
+  /* Make all buttons have a pointer cursor */
+  button,
+  [type='button'],
+  [type='reset'],
+  [type='submit'],
+  .btn,
+  a[role='button'] {
+    @apply cursor-pointer;
   }
 }
