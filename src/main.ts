@@ -4,7 +4,6 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 
 import App from './App.vue'
-import router from './router'
 
 // Security headers and CSP configuration
 const app = createApp(App)
@@ -29,17 +28,6 @@ function generateCSRFToken(): string {
   return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-// Add security middleware
-app.config.globalProperties.$securityMiddleware = {
-  validateCSRFToken: (token: string) => {
-    return token === app.config.globalProperties.$csrfToken
-  },
-  sanitizeInput: (input: string) => {
-    return input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-  },
-}
-
 app.use(createPinia())
-app.use(router)
 
 app.mount('#app')
