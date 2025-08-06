@@ -16,19 +16,19 @@ export interface SecurityCheckResponse {
   csrfToken?: string
 }
 
-export class SecurityAPIService {
-  private static instance: SecurityAPIService
+export class SecurityApiService {
+  private static instance: SecurityApiService
   private csrfToken: string
 
   private constructor() {
     this.csrfToken = this.generateCSRFToken()
   }
 
-  public static getInstance(): SecurityAPIService {
-    if (!SecurityAPIService.instance) {
-      SecurityAPIService.instance = new SecurityAPIService()
+  public static getInstance(): SecurityApiService {
+    if (!SecurityApiService.instance) {
+      SecurityApiService.instance = new SecurityApiService()
     }
-    return SecurityAPIService.instance
+    return SecurityApiService.instance
   }
 
   private generateCSRFToken(): string {
@@ -179,4 +179,4 @@ export class SecurityAPIService {
   }
 }
 
-export default SecurityAPIService
+export default SecurityApiService 

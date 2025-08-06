@@ -154,12 +154,14 @@ export class SecurityCheckOrchestrator {
         hasPermissionsPolicy: false,
       },
       cryptoStatus: {
+        isAvailable: false,
         hasSecureRandom: false,
         hasSubtleCrypto: false,
         hasKeyGeneration: false,
         hasEncryption: false,
       },
       storageStatus: {
+        isSecure: false,
         hasSecureStorage: false,
         hasEncryptedStorage: false,
         hasSessionStorage: false,

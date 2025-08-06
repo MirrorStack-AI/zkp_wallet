@@ -97,12 +97,13 @@ import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import ContainerMain from '@/components/ContainerMain.vue'
 import IconLogo from '@/components/icons/IconLogo.vue'
 import ProgressIndicator from '@/components/ProgressIndicator.vue'
-import { SecurityCheckService } from '@/services/security-check'
+import { SecurityCheckOrchestrator as SecurityCheckService } from '@/services/security-check'
 import { SecurityCheckStep } from '@/services/security-check/types'
 
 // Define emits for component-based navigation
 const emit = defineEmits<{
   'navigate-to-welcome': []
+  'navigate-to-authentication': []
 }>()
 
 const TROUBLESHOOTING_DELAY = 15000 // 15 seconds
@@ -320,14 +321,45 @@ onUnmounted(() => {
   cleanupIntervals()
 })
 
-// Watch for security check completion and navigate to welcome
-watch(securityCheckComplete, (isComplete) => {
+// Watch for security check completion and navigate appropriately
+watch(securityCheckComplete, async (isComplete) => {
   if (isComplete) {
-    console.log('Security check completed, navigating to welcome view...')
-    // Use a small delay to ensure the UI updates properly
-    setTimeout(() => {
-      emit('navigate-to-welcome')
-    }, STATE_UPDATE_INTERVAL)
+    console.log('Security check completed, checking for pending authentication...')
+    
+    // Check if there's a pending authentication request
+    try {
+      if (window.chrome?.runtime?.sendMessage) {
+        const response = await window.chrome.runtime.sendMessage({
+          type: 'CHECK_PENDING_AUTH_REQUEST'
+        } as any)
+        
+        if (response && (response as any).hasPending) {
+          console.log('Security check completed, navigating to authentication view...')
+          // Use a small delay to ensure the UI updates properly
+          setTimeout(() => {
+            emit('navigate-to-authentication')
+          }, STATE_UPDATE_INTERVAL)
+        } else {
+          console.log('Security check completed, navigating to welcome view...')
+          // Use a small delay to ensure the UI updates properly
+          setTimeout(() => {
+            emit('navigate-to-welcome')
+          }, STATE_UPDATE_INTERVAL)
+        }
+      } else {
+        // Fallback to welcome view
+        console.log('Security check completed, navigating to welcome view...')
+        setTimeout(() => {
+          emit('navigate-to-welcome')
+        }, STATE_UPDATE_INTERVAL)
+      }
+    } catch (error) {
+      console.error('Error checking for pending auth request:', error)
+      // Fallback to welcome view
+      setTimeout(() => {
+        emit('navigate-to-welcome')
+      }, STATE_UPDATE_INTERVAL)
+    }
   }
 })
 

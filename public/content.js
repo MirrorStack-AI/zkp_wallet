@@ -15,6 +15,9 @@ class ContentScriptService {
     try {
       console.log('MirrorStack Wallet: Initializing content script...')
 
+      // Expose API immediately to avoid timing issues
+      this.exposeAuthenticationAPI()
+
       // Get current tab information
       await this.getCurrentTab()
 
@@ -28,6 +31,8 @@ class ContentScriptService {
       console.log('MirrorStack Wallet: Content script initialized successfully')
     } catch (error) {
       console.error('MirrorStack Wallet: Content script initialization failed:', error)
+      // Still expose API even if initialization fails
+      this.exposeAuthenticationAPI()
     }
   }
 
@@ -623,6 +628,199 @@ class ContentScriptService {
       console.log('MirrorStack Wallet: Could not get security status:', error.message)
     }
   }
+
+  /**
+   * Expose authentication API to websites
+   */
+  exposeAuthenticationAPI() {
+    // Inject the web-accessible API script
+    const injectAPIScript = () => {
+      const script = document.createElement('script')
+      script.src = chrome.runtime.getURL('api.js')
+      script.onload = () => {
+        console.log('MirrorStack Wallet: API script loaded successfully')
+      }
+      script.onerror = (error) => {
+        console.error('MirrorStack Wallet: Failed to load API script:', error)
+      }
+      document.head.appendChild(script)
+    }
+
+    // Listen for messages from the web page
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'MIRRORSTACK_AUTH_REQUEST') {
+        console.log('MirrorStack Wallet: Received auth request from web page:', event.data)
+        
+        // Handle the request using chrome.runtime
+        this.handleAuthenticationRequest(event.data.data.sourceUrl, event.data.data.destinationUrl)
+          .then(response => {
+            // Send response back to web page
+            window.postMessage({
+              type: 'MIRRORSTACK_AUTH_RESPONSE',
+              response: response
+            }, '*')
+          })
+          .catch(error => {
+            // Send error response back to web page
+            window.postMessage({
+              type: 'MIRRORSTACK_AUTH_RESPONSE',
+              response: {
+                success: false,
+                error: error.message
+              }
+            }, '*')
+          })
+      } else if (event.data && event.data.type === 'MIRRORSTACK_CLEAR_AUTH_REQUEST') {
+        console.log('MirrorStack Wallet: Received clear auth request from web page:', event.data)
+        
+        // Handle the clear request using chrome.runtime
+        this.handleClearAuthenticationRequest(event.data.data.requestId)
+          .then(response => {
+            console.log('MirrorStack Wallet: Clear auth request successful, sending response to web page')
+            // Send response back to web page
+            window.postMessage({
+              type: 'MIRRORSTACK_CLEAR_AUTH_RESPONSE',
+              response: response
+            }, '*')
+          })
+          .catch(error => {
+            console.log('MirrorStack Wallet: Clear auth request failed, sending error to web page')
+            // Send error response back to web page
+            window.postMessage({
+              type: 'MIRRORSTACK_CLEAR_AUTH_RESPONSE',
+              response: {
+                success: false,
+                error: error.message
+              }
+            }, '*')
+          })
+      } else if (event.data && event.data.type === 'MIRRORSTACK_SEND_MESSAGE') {
+        console.log('MirrorStack Wallet: Received send message request from web page:', event.data)
+        
+        // Handle the send message request using chrome.runtime
+        this.handleSendMessage(event.data.data)
+          .then(response => {
+            console.log('MirrorStack Wallet: Send message request successful, sending response to web page')
+            // Send response back to web page
+            window.postMessage({
+              type: 'MIRRORSTACK_SEND_MESSAGE_RESPONSE',
+              response: response
+            }, '*')
+          })
+          .catch(error => {
+            console.log('MirrorStack Wallet: Send message request failed, sending error to web page')
+            // Send error response back to web page
+            window.postMessage({
+              type: 'MIRRORSTACK_SEND_MESSAGE_RESPONSE',
+              response: {
+                success: false,
+                error: error.message
+              }
+            }, '*')
+          })
+      }
+    })
+
+    // Listen for authentication status updates from background script
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === 'AUTHENTICATION_STATUS_UPDATE') {
+        console.log('MirrorStack Wallet: Received auth status update:', message)
+        
+        // Forward the status update to the web page
+        window.postMessage({
+          type: 'MIRRORSTACK_AUTH_STATUS_UPDATE',
+          status: message.status,
+          requestId: message.requestId
+        }, '*')
+      }
+    })
+
+    // Inject the API script
+    injectAPIScript()
+  }
+
+  /**
+   * Handle authentication request
+   */
+  async handleAuthenticationRequest(sourceUrl, destinationUrl) {
+    try {
+      console.log('MirrorStack Wallet: Processing auth request:', { sourceUrl, destinationUrl })
+      
+      if (typeof chrome === 'undefined' || !chrome.runtime) {
+        throw new Error('Chrome runtime not available')
+      }
+      
+      const response = await chrome.runtime.sendMessage({
+        type: 'AUTHENTICATION_REQUEST',
+        data: {
+          sourceUrl: sourceUrl,
+          destinationUrl: destinationUrl
+        }
+      })
+      
+      console.log('MirrorStack Wallet: Auth response from background:', response)
+      return response
+    } catch (error) {
+      console.error('MirrorStack Wallet: Auth request failed:', error)
+      return {
+        success: false,
+        error: error.message
+      }
+    }
+  }
+
+  /**
+   * Handle clear authentication request
+   */
+  async handleClearAuthenticationRequest(requestId) {
+    try {
+      console.log('MirrorStack Wallet: Processing clear auth request:', { requestId })
+      
+      if (typeof chrome === 'undefined' || !chrome.runtime) {
+        throw new Error('Chrome runtime not available')
+      }
+      
+      const response = await chrome.runtime.sendMessage({
+        type: 'CLEAR_AUTHENTICATION_REQUEST',
+        requestId: requestId
+      })
+      
+      console.log('MirrorStack Wallet: Clear auth response from background:', response)
+      return response
+    } catch (error) {
+      console.error('MirrorStack Wallet: Clear auth request failed:', error)
+      return {
+        success: false,
+        error: error.message
+      }
+    }
+  }
+
+  /**
+   * Handle send message request
+   */
+  async handleSendMessage(message) {
+    try {
+      console.log('MirrorStack Wallet: Processing send message request:', message)
+      
+      if (typeof chrome === 'undefined' || !chrome.runtime) {
+        throw new Error('Chrome runtime not available')
+      }
+      
+      const response = await chrome.runtime.sendMessage(message)
+      
+      console.log('MirrorStack Wallet: Send message response from background:', response)
+      return response
+    } catch (error) {
+      console.error('MirrorStack Wallet: Send message request failed:', error)
+      return {
+        success: false,
+        error: error.message
+      }
+    }
+  }
+
+
 
   /**
    * Show security indicator using safe DOM manipulation

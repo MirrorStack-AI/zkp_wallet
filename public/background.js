@@ -25,6 +25,9 @@ class ExtensionBackgroundService {
       await this.loadThemePreference()
       await this.updateExtensionIcon()
 
+      // Clear any stale authentication data on startup
+      await this.clearAuthenticationStatus()
+
       // Perform initial security check
       await this.performSecurityCheck()
 
@@ -169,6 +172,69 @@ class ExtensionBackgroundService {
           sendResponse(apiResult)
           break
 
+        case 'AUTHENTICATION_REQUEST':
+          const authResult = await this.handleAuthenticationRequest(message.data)
+          sendResponse(authResult)
+          break
+
+        case 'OPEN_AUTHENTICATION_POPUP':
+          const popupResult = await this.openAuthenticationPopup(message.data)
+          sendResponse(popupResult)
+          break
+
+        case 'AUTHENTICATION_COMPLETED':
+          await this.updateAuthenticationStatus(message.requestId, 'authorized')
+          // Send status update to content script
+          await this.sendAuthStatusUpdate('authorized', message.requestId)
+          sendResponse({ success: true })
+          break
+
+        case 'AUTHENTICATION_CANCELLED':
+          await this.updateAuthenticationStatus(message.requestId, 'cancelled')
+          // Send status update to content script
+          await this.sendAuthStatusUpdate('cancelled', message.requestId)
+          sendResponse({ success: true })
+          break
+
+        case 'AUTHENTICATION_TIMEOUT':
+          // Update the status to timeout instead of clearing
+          await this.updateAuthenticationStatus(message.requestId, 'timeout')
+          // Send status update to content script
+          await this.sendAuthStatusUpdate('timeout', message.requestId)
+          sendResponse({ success: true })
+          break
+
+        case 'CHECK_PENDING_AUTH_REQUEST':
+          const hasPending = await this.checkForPendingAuthRequest()
+          sendResponse({ hasPending })
+          break
+
+        case 'CLEAR_AUTHENTICATION_REQUEST':
+          console.log('MirrorStack Wallet: Received clear auth request from content script:', message.requestId)
+          await this.clearAuthenticationStatus(message.requestId)
+          console.log('MirrorStack Wallet: Clear auth request completed')
+          sendResponse({ success: true })
+          break
+
+        case 'EXTENSION_OPENED_WITH_PENDING_AUTH':
+          console.log('MirrorStack Wallet: Extension opened with pending auth, sending status update')
+          await this.sendAuthStatusUpdate('extension_opened', message.requestId)
+          sendResponse({ success: true })
+          break
+
+        case 'AUTHENTICATION_SUCCESS_TO_WEB':
+          console.log('MirrorStack Wallet: Authentication success to web, sending status update')
+          await this.updateAuthenticationStatus(message.requestId, 'authorized')
+          await this.sendAuthStatusUpdate('authorized', message.requestId)
+          sendResponse({ success: true })
+          break
+
+        case 'UPDATE_EXTENSION_TIMEOUT':
+          console.log('MirrorStack Wallet: Updating extension timeout to:', message.timeoutSeconds)
+          await this.updateExtensionTimeout(message.timeoutSeconds)
+          sendResponse({ success: true })
+          break
+
         default:
           sendResponse({ success: false, error: 'Unknown message type' })
       }
@@ -192,14 +258,41 @@ class ExtensionBackgroundService {
    * Handle extension icon click
    */
   handleExtensionIconClick(tab) {
-    // Open popup or perform action based on security status
-    if (this.securityStatus === 'SECURE') {
-      // Open main popup
-      chrome.action.setPopup({ popup: 'popup.html' })
-    } else {
-      // Open security check popup
-      chrome.action.setPopup({ popup: 'security-check.html' })
-    }
+    console.log('MirrorStack Wallet: Extension icon clicked')
+    
+    // Check if there's a pending authentication request
+    this.checkForPendingAuthRequest().then(hasPending => {
+      if (hasPending) {
+        // If there's a pending auth request, always start with security check
+        console.log('MirrorStack Wallet: Pending auth request - opening security check first')
+        chrome.action.setPopup({ popup: 'popup.html?view=security-check' })
+        
+        // Get the actual requestId from the pending request and send status update
+        this.getPendingRequestId().then(requestId => {
+          if (requestId) {
+            console.log('MirrorStack Wallet: Sending extension_opened status for request:', requestId)
+            this.sendAuthStatusUpdate('extension_opened', requestId)
+          } else {
+            console.log('MirrorStack Wallet: No pending requestId found')
+          }
+        })
+      } else {
+        // Normal flow - no pending auth request
+        if (this.securityStatus === 'SECURE') {
+          // Security check passed, open welcome/main view
+          console.log('MirrorStack Wallet: Security check passed, opening welcome view')
+          chrome.action.setPopup({ popup: 'popup.html?view=welcome' })
+        } else {
+          // Security check needed
+          console.log('MirrorStack Wallet: Security check required')
+          chrome.action.setPopup({ popup: 'popup.html?view=security-check' })
+        }
+      }
+    }).catch(error => {
+      console.error('MirrorStack Wallet: Error checking for pending auth request:', error)
+      // Fallback to default behavior
+      chrome.action.setPopup({ popup: 'popup.html?view=security-check' })
+    })
   }
 
   /**
@@ -567,6 +660,277 @@ class ExtensionBackgroundService {
       .replace(/<iframe/gi, '')
       .replace(/<object/gi, '')
       .replace(/<embed/gi, '')
+  }
+
+  /**
+   * Handle authentication request from websites
+   */
+  async handleAuthenticationRequest(request) {
+    try {
+      console.log('MirrorStack Wallet: Handling authentication request:', request)
+
+      // Validate request
+      if (!request.sourceUrl || !request.destinationUrl) {
+        return {
+          success: false,
+          error: 'Missing required parameters',
+          status: 400
+        }
+      }
+
+      // Generate unique request ID
+      const requestId = this.generateRequestId()
+
+      // Store authentication request
+      await this.storeAuthenticationRequest(requestId, request)
+
+      // Open authentication popup
+      const popupResult = await this.openAuthenticationPopup({
+        sourceUrl: request.sourceUrl,
+        destinationUrl: request.destinationUrl,
+        requestId: requestId
+      })
+
+      return {
+        success: true,
+        requestId: requestId,
+        popupOpened: popupResult.success,
+        status: 200
+      }
+    } catch (error) {
+      console.error('MirrorStack Wallet: Authentication request failed:', error)
+      return {
+        success: false,
+        error: error.message,
+        status: 500
+      }
+    }
+  }
+
+  /**
+   * Open authentication popup by setting the popup URL
+   */
+  async openAuthenticationPopup(authData) {
+    try {
+      console.log('MirrorStack Wallet: Opening authentication popup:', authData)
+
+      // Store the authentication data for the popup to access
+      await this.storeAuthenticationRequest(authData.requestId, {
+        sourceUrl: authData.sourceUrl,
+        destinationUrl: authData.destinationUrl,
+        requestId: authData.requestId
+      })
+
+      // Set the popup URL to security check (not authentication directly)
+      const popupUrl = chrome.runtime.getURL('popup.html') + `?view=security-check`
+      
+      console.log('MirrorStack Wallet: Setting popup URL to security check:', popupUrl)
+      
+      // Set the popup URL for the extension action
+      await chrome.action.setPopup({
+        popup: popupUrl
+      })
+
+      console.log('MirrorStack Wallet: Popup URL set to security check - user must click extension icon to open popup')
+
+      return {
+        success: true,
+        requestId: authData.requestId,
+        popupUrl: popupUrl,
+        message: 'Popup URL set. Click the extension icon to open the security check popup.'
+      }
+    } catch (error) {
+      console.error('MirrorStack Wallet: Failed to set popup URL:', error)
+      return {
+        success: false,
+        error: error.message
+      }
+    }
+  }
+
+  /**
+   * Generate unique request ID
+   */
+  generateRequestId() {
+    return 'auth_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+  }
+
+  /**
+   * Store authentication request
+   */
+  async storeAuthenticationRequest(requestId, request) {
+    try {
+      const result = await chrome.storage.local.get(['authRequests'])
+      const authRequests = result.authRequests || {}
+      
+      authRequests[requestId] = {
+        ...request,
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+        startTime: Date.now() // Store the start time when request is created
+      }
+      
+      await chrome.storage.local.set({ authRequests })
+      console.log('MirrorStack Wallet: Authentication request stored successfully:', requestId)
+    } catch (error) {
+      console.error('MirrorStack Wallet: Failed to store authentication request:', error)
+    }
+  }
+
+  /**
+   * Check for pending authentication requests
+   */
+  async checkForPendingAuthRequest() {
+    try {
+      const result = await chrome.storage.local.get(['authRequests'])
+      const authRequests = result.authRequests || {}
+      
+      // Check if there are any pending requests
+      const pendingRequests = Object.values(authRequests).filter(request => 
+        request.status === 'pending'
+      )
+      
+      console.log('MirrorStack Wallet: Checking for pending auth requests:', {
+        totalRequests: Object.keys(authRequests).length,
+        pendingRequests: pendingRequests.length,
+        authRequests: authRequests
+      })
+      
+      return pendingRequests.length > 0
+    } catch (error) {
+      console.error('MirrorStack Wallet: Failed to check for pending auth requests:', error)
+      return false
+    }
+  }
+
+  /**
+   * Get the requestId of the first pending authentication request
+   */
+  async getPendingRequestId() {
+    try {
+      const result = await chrome.storage.local.get(['authRequests'])
+      const authRequests = result.authRequests || {}
+      
+      // Find the first pending request
+      const pendingRequest = Object.values(authRequests).find(request => 
+        request.status === 'pending'
+      )
+      
+      if (pendingRequest) {
+        console.log('MirrorStack Wallet: Found pending requestId:', pendingRequest.requestId)
+        return pendingRequest.requestId
+      } else {
+        console.log('MirrorStack Wallet: No pending request found')
+        return null
+      }
+    } catch (error) {
+      console.error('MirrorStack Wallet: Failed to get pending requestId:', error)
+      return null
+    }
+  }
+
+  /**
+   * Update extension timeout
+   */
+  async updateExtensionTimeout(timeoutSeconds) {
+    try {
+      await chrome.storage.local.set({ extensionTimeoutSeconds: timeoutSeconds })
+      console.log('MirrorStack Wallet: Updated extension timeout to:', timeoutSeconds, 'seconds')
+    } catch (error) {
+      console.error('MirrorStack Wallet: Failed to update extension timeout:', error)
+    }
+  }
+
+  /**
+   * Get extension timeout
+   */
+  async getExtensionTimeout() {
+    try {
+      const result = await chrome.storage.local.get(['extensionTimeoutSeconds'])
+      return result.extensionTimeoutSeconds || 45 // Default to 45 seconds
+    } catch (error) {
+      console.error('MirrorStack Wallet: Failed to get extension timeout:', error)
+      return 45 // Default to 45 seconds
+    }
+  }
+
+  /**
+   * Update authentication status
+   */
+  async updateAuthenticationStatus(requestId, status) {
+    try {
+      const result = await chrome.storage.local.get(['authRequests'])
+      const authRequests = result.authRequests || {}
+      
+      if (requestId && authRequests[requestId]) {
+        authRequests[requestId].status = status
+        await chrome.storage.local.set({ authRequests })
+        console.log('MirrorStack Wallet: Updated authentication status for request:', requestId, 'to:', status)
+      }
+    } catch (error) {
+      console.error('MirrorStack Wallet: Failed to update authentication status:', error)
+    }
+  }
+
+  /**
+   * Clear authentication status
+   */
+  async clearAuthenticationStatus(requestId) {
+    try {
+      const result = await chrome.storage.local.get(['authRequests'])
+      let authRequests = result.authRequests || {}
+      
+      if (requestId) {
+        // Clear specific request
+        delete authRequests[requestId]
+        console.log('MirrorStack Wallet: Cleared authentication status for request:', requestId)
+      } else {
+        // Clear all pending requests and timeout requests
+        const clearedRequests = {}
+        Object.keys(authRequests).forEach(key => {
+          const request = authRequests[key]
+          // Keep only completed requests (authorized, cancelled, timeout)
+          if (request.status === 'authorized' || request.status === 'cancelled' || request.status === 'timeout') {
+            clearedRequests[key] = request
+          }
+          // Clear pending requests and any other status
+        })
+        authRequests = clearedRequests
+        console.log('MirrorStack Wallet: Cleared all pending authentication requests')
+      }
+      
+      await chrome.storage.local.set({ authRequests })
+    } catch (error) {
+      console.error('MirrorStack Wallet: Failed to clear authentication status:', error)
+    }
+  }
+
+  /**
+   * Send authentication status update to content script
+   */
+  async sendAuthStatusUpdate(status, requestId) {
+    try {
+      // Get all tabs that might have the content script
+      const tabs = await chrome.tabs.query({
+        url: ['http://localhost:*/*', 'http://127.0.0.1:*/*', 'https://*/*']
+      })
+      
+      for (const tab of tabs) {
+        try {
+          await chrome.tabs.sendMessage(tab.id, {
+            type: 'AUTHENTICATION_STATUS_UPDATE',
+            status: status,
+            requestId: requestId
+          })
+          console.log('MirrorStack Wallet: Sent auth status update to tab:', tab.id)
+        } catch (error) {
+          // Tab might not have content script, ignore
+          console.log('MirrorStack Wallet: Could not send to tab:', tab.id, error.message)
+        }
+      }
+    } catch (error) {
+      console.error('MirrorStack Wallet: Failed to send auth status update:', error)
+    }
   }
 
   /**

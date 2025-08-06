@@ -19,6 +19,7 @@
           <button
             class="w-full h-24 px-6 bg-primary text-on-primary rounded-3xl text-left transition-all duration-300 hover:bg-primary-container hover:text-on-primary-container hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/25 active:scale-[0.98] group"
             data-testid="create-account-button"
+            @click="emit('navigate-to-registration')"
           >
             <div class="flex items-center gap-2 mb-2">
               <div class="w-6 h-6 flex items-center justify-center">
@@ -42,6 +43,7 @@
           <button
             class="w-full h-24 px-6 border-2 border-outline text-on-surface rounded-3xl text-left transition-all duration-300 hover:bg-surface-variant hover:text-on-surface-variant hover:scale-[1.02] hover:shadow-lg hover:shadow-outline/25 active:scale-[0.98] group"
             data-testid="restore-account-button"
+            @click="emit('navigate-to-restore')"
           >
             <div class="flex items-center gap-2 mb-2">
               <div class="w-6 h-6 flex items-center justify-center">
@@ -87,6 +89,12 @@
 <script setup lang="ts">
 import ContainerMain from '@/components/ContainerMain.vue'
 import IconLogo from '@/components/icons/IconLogo.vue'
+
+// Define emits for component-based navigation
+const emit = defineEmits<{
+  'navigate-to-registration': []
+  'navigate-to-restore': []
+}>()
 </script>
 
 <style scoped>

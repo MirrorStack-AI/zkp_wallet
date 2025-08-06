@@ -3,7 +3,7 @@
   "name": "MirrorStack Wallet",
   "version": "1.0.0",
   "description": "Enterprise-grade cryptocurrency wallet with ZKP authentication and HSM integration",
-  "permissions": ["storage"],
+  "permissions": ["storage", "tabs", "action", "scripting"],
   "host_permissions": [
     "https://*.metamask.io/*",
     "https://*.trustwallet.com/*",
@@ -16,7 +16,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://*/*"],
+      "matches": ["https://*/*", "http://localhost:*/*", "http://127.0.0.1:*/*"],
       "js": ["content.js"],
       "run_at": "document_end"
     }
@@ -40,8 +40,8 @@
   "options_page": "options.html",
   "web_accessible_resources": [
     {
-      "resources": ["assets/*"],
-      "matches": ["https://*/*"]
+      "resources": ["api.js"],
+      "matches": ["https://*/*", "http://localhost:*/*", "http://127.0.0.1:*/*"]
     }
   ],
   "content_security_policy": {

@@ -51,6 +51,7 @@ export class StorageCheck extends BaseSecurityCheck {
       const hasEncryptedStorage = await this.testEncryptedStorage()
 
       const storageStatus: StorageStatus = {
+        isSecure: hasSecureStorage && hasEncryptedStorage,
         hasSecureStorage,
         hasEncryptedStorage,
         hasSessionStorage,
@@ -66,6 +67,7 @@ export class StorageCheck extends BaseSecurityCheck {
       }
     } catch (error) {
       const storageStatus: StorageStatus = {
+        isSecure: false,
         hasSecureStorage: false,
         hasEncryptedStorage: false,
         hasSessionStorage: false,

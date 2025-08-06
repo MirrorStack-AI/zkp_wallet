@@ -6,6 +6,7 @@
     aria-valuemin="0"
     aria-valuemax="100"
     :aria-label="label"
+    data-testid="progress-indicator"
   >
     <!-- Optional Label and Percentage -->
     <div v-if="showLabel" class="flex justify-between items-center mb-2">
@@ -14,9 +15,9 @@
     </div>
 
     <!-- Progress Bar -->
-    <div class="w-full h-1 bg-surface-container rounded-full overflow-hidden">
+    <div class="w-full h-2 bg-surface-variant rounded-full overflow-hidden">
       <div
-        class="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+        class="h-full bg-primary rounded-full transition-all duration-300 ease-in-out"
         :style="{ width: `${clampedProgress}%` }"
         :class="{ 'animate-pulse': isActive }"
       ></div>
