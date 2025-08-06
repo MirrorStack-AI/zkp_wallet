@@ -39,6 +39,7 @@ export interface SecurityCheckConfig {
   enableGDPRCompliance: boolean
   enableThreatDetection: boolean
   enableSOC2Compliance: boolean
+  enableTest?: boolean
   timeoutMs: number
   retryAttempts: number
   delayMs: number
@@ -94,6 +95,7 @@ export interface HeadersStatus {
 }
 
 export interface CryptoStatus {
+  isAvailable: boolean
   hasSecureRandom: boolean
   hasSubtleCrypto: boolean
   hasKeyGeneration: boolean
@@ -102,6 +104,7 @@ export interface CryptoStatus {
 }
 
 export interface StorageStatus {
+  isSecure: boolean
   hasSecureStorage: boolean
   hasEncryptedStorage: boolean
   hasSessionStorage: boolean
@@ -158,6 +161,7 @@ export interface SOC2ComplianceStatus {
 
 export enum SecurityCheckStep {
   INITIALIZING = 'initializing',
+  RUNNING = 'running',
   DEVICE_FINGERPRINTING = 'device_fingerprinting',
   HSM_VERIFICATION = 'hsm_verification',
   BIOMETRIC_CHECK = 'biometric_check',

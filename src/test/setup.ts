@@ -4,11 +4,32 @@
  */
 
 import { vi } from 'vitest'
+import { config } from '@vue/test-utils'
 
-// Mock window.matchMedia for theme testing
+// Mock the security service module globally
+vi.mock('@/services/security-check', () => {
+  return {
+    SecurityCheckOrchestrator: vi.fn().mockImplementation(() => ({
+      getState: vi.fn(() => ({
+        isChecking: false,
+        isComplete: false,
+        isSuccess: false,
+        error: null as string | null,
+        progress: 0,
+        currentStep: null as string | null,
+        results: [] as Array<{ name: string; success: boolean; details?: string }>
+      })),
+      startCheck: vi.fn(),
+      stopCheck: vi.fn(),
+      resetCheck: vi.fn()
+    }))
+  }
+})
+
+// Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation((query: string) => ({
+  value: vi.fn().mockImplementation(query => ({
     matches: false,
     media: query,
     onchange: null,
@@ -20,46 +41,7 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 })
 
-// Mock HTMLCanvasElement.getContext for device fingerprinting
-// Commented out due to TypeScript type conflicts - not critical for tests
-/*
-const originalGetContext = HTMLCanvasElement.prototype.getContext
-HTMLCanvasElement.prototype.getContext = function (contextId: string, ...args: unknown[]) {
-  if (contextId === '2d') {
-    const mockContext = {
-      fillRect: vi.fn(),
-      clearRect: vi.fn(),
-      getImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4) })),
-      putImageData: vi.fn(),
-      createImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4) })),
-      setTransform: vi.fn(),
-      drawImage: vi.fn(),
-      save: vi.fn(),
-      fillText: vi.fn(),
-      restore: vi.fn(),
-      beginPath: vi.fn(),
-      moveTo: vi.fn(),
-      lineTo: vi.fn(),
-      closePath: vi.fn(),
-      stroke: vi.fn(),
-      translate: vi.fn(),
-      scale: vi.fn(),
-      rotate: vi.fn(),
-      arc: vi.fn(),
-      fill: vi.fn(),
-      measureText: vi.fn(() => ({ width: 0 })),
-      transform: vi.fn(),
-      rect: vi.fn(),
-      clip: vi.fn(),
-    } as unknown as CanvasRenderingContext2D
-    return mockContext
-  }
-  // For other context types, return null to avoid type conflicts
-  return null
-} as any
-*/
-
-// Mock chrome extension APIs
+// Mock window.chrome
 Object.defineProperty(window, 'chrome', {
   writable: true,
   value: {
@@ -68,81 +50,72 @@ Object.defineProperty(window, 'chrome', {
         get: vi.fn(),
         set: vi.fn(),
         remove: vi.fn(),
-        clear: vi.fn(),
-      },
-      sync: {
-        get: vi.fn(),
-        set: vi.fn(),
-        remove: vi.fn(),
-        clear: vi.fn(),
-      },
-    },
-    sidePanel: {
-      setOptions: vi.fn(),
+        clear: vi.fn()
+      }
     },
     runtime: {
       sendMessage: vi.fn(),
       onMessage: {
         addListener: vi.fn(),
-        removeListener: vi.fn(),
+        removeListener: vi.fn()
       },
-    },
-  },
+      getURL: vi.fn()
+    }
+  }
 })
 
-// Mock crypto API for testing
+// Mock window.browser (Firefox)
+Object.defineProperty(window, 'browser', {
+  writable: true,
+  value: {
+    storage: {
+      local: {
+        get: vi.fn(),
+        set: vi.fn(),
+        remove: vi.fn(),
+        clear: vi.fn()
+      }
+    },
+    runtime: {
+      sendMessage: vi.fn(),
+      onMessage: {
+        addListener: vi.fn(),
+        removeListener: vi.fn()
+      },
+      getURL: vi.fn()
+    }
+  }
+})
+
+// Mock crypto API
 Object.defineProperty(window, 'crypto', {
   writable: true,
   value: {
-    subtle: {
-      generateKey: vi.fn(),
-      sign: vi.fn(),
-      verify: vi.fn(),
-      digest: vi.fn(),
-      encrypt: vi.fn(),
-      decrypt: vi.fn(),
-      exportKey: vi.fn(),
-      importKey: vi.fn(),
-    },
-    getRandomValues: vi.fn((array) => {
-      for (let i = 0; i < array.length; i++) {
-        array[i] = Math.floor(Math.random() * 256)
+    getRandomValues: vi.fn((arr) => {
+      for (let i = 0; i < arr.length; i++) {
+        arr[i] = Math.floor(Math.random() * 256)
       }
-      return array
-    }),
-  },
+      return arr
+    })
+  }
 })
 
-// Mock navigator for device fingerprinting
+// Mock navigator
 Object.defineProperty(window, 'navigator', {
   writable: true,
   value: {
-    ...window.navigator,
-    platform: 'Win32',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+    platform: 'MacIntel',
     language: 'en-US',
     languages: ['en-US', 'en'],
-    hardwareConcurrency: 8,
-    maxTouchPoints: 0,
-    onLine: true,
-    cookieEnabled: true,
-    doNotTrack: null,
-    geolocation: {
-      getCurrentPosition: vi.fn(),
-      watchPosition: vi.fn(),
-      clearWatch: vi.fn(),
-    },
-    mediaDevices: {
-      enumerateDevices: vi.fn(() => Promise.resolve([])),
-      getUserMedia: vi.fn(() => Promise.resolve({})),
-    },
-    permissions: {
-      query: vi.fn(() => Promise.resolve({ state: 'granted' })),
-    },
-  },
+    clipboard: {
+      writeText: vi.fn().mockResolvedValue(undefined),
+      readText: vi.fn().mockResolvedValue('')
+    }
+  }
 })
 
-// Mock screen for device fingerprinting
+// Mock screen
 Object.defineProperty(window, 'screen', {
   writable: true,
   value: {
@@ -151,52 +124,149 @@ Object.defineProperty(window, 'screen', {
     availWidth: 1920,
     availHeight: 1040,
     colorDepth: 24,
-    pixelDepth: 24,
-    orientation: {
-      type: 'landscape-primary',
-      angle: 0,
-    },
-  },
+    pixelDepth: 24
+  }
 })
 
-// Mock location for extension context
+// Mock location
 Object.defineProperty(window, 'location', {
   writable: true,
   value: {
-    protocol: 'chrome-extension:',
-    hostname: 'extension',
-    pathname: '/popup.html',
-    href: 'chrome-extension://test/popup.html',
-  },
+    href: 'http://localhost:3000',
+    origin: 'http://localhost:3000',
+    protocol: 'http:',
+    host: 'localhost:3000',
+    hostname: 'localhost',
+    port: '3000',
+    pathname: '/',
+    search: '',
+    hash: ''
+  }
 })
 
-// Mock document for DOM testing with proper classList
+// Mock document.documentElement
 Object.defineProperty(document, 'documentElement', {
   writable: true,
   value: {
-    clientWidth: 1920,
-    clientHeight: 1080,
-    scrollWidth: 1920,
-    scrollHeight: 1080,
-    offsetWidth: 1920,
-    offsetHeight: 1080,
+    style: {
+      setProperty: vi.fn(),
+      getPropertyValue: vi.fn()
+    },
     classList: {
-      add: vi.fn(),
       remove: vi.fn(),
+      add: vi.fn(),
       contains: vi.fn(),
-      toggle: vi.fn(),
+      toggle: vi.fn()
     },
     setAttribute: vi.fn(),
     getAttribute: vi.fn(),
-  },
+    removeAttribute: vi.fn()
+  }
+})
+
+// Mock localStorage
+Object.defineProperty(window, 'localStorage', {
+  writable: true,
+  value: {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+    length: 0,
+    key: vi.fn()
+  }
+})
+
+// Mock sessionStorage
+Object.defineProperty(window, 'sessionStorage', {
+  writable: true,
+  value: {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+    length: 0,
+    key: vi.fn()
+  }
+})
+
+// Mock MirrorStackWallet
+Object.defineProperty(window, 'MirrorStackWallet', {
+  writable: true,
+  value: {
+    version: '1.0.0',
+    features: ['authentication', 'security-check'],
+    authenticate: vi.fn(),
+    checkStatus: vi.fn(),
+    sendMessage: vi.fn(),
+    isAvailable: vi.fn(),
+    getInfo: vi.fn(),
+    generateSeedPhrase: vi.fn(),
+    verifySignature: vi.fn(),
+    requestAuthentication: vi.fn(),
+    clearAuthenticationStatus: vi.fn()
+  }
 })
 
 // Mock console methods to reduce noise in tests
-Object.defineProperty(console, 'warn', {
+global.console = {
+  ...console,
+  warn: vi.fn(),
+  error: vi.fn(),
+}
+
+// Mock ResizeObserver
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}))
+
+// Mock IntersectionObserver
+global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}))
+
+// Mock requestAnimationFrame
+global.requestAnimationFrame = vi.fn((callback) => {
+  setTimeout(callback, 0)
+  return 1
+}) as any
+global.cancelAnimationFrame = vi.fn()
+
+// Mock window methods
+Object.defineProperty(window, 'addEventListener', {
   writable: true,
-  value: vi.fn(),
+  value: vi.fn()
 })
-Object.defineProperty(console, 'error', {
+
+Object.defineProperty(window, 'removeEventListener', {
   writable: true,
-  value: vi.fn(),
+  value: vi.fn()
 })
+
+Object.defineProperty(window, 'close', {
+  writable: true,
+  value: vi.fn()
+})
+
+// Mock history
+Object.defineProperty(window, 'history', {
+  writable: true,
+  value: {
+    pushState: vi.fn(),
+    replaceState: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    go: vi.fn(),
+    length: 1
+  }
+})
+
+// Configure Vue Test Utils
+config.global.stubs = {
+  'router-link': true,
+  'router-view': true,
+}

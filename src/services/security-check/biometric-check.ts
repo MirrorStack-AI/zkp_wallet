@@ -46,9 +46,18 @@ export class BiometricCheck extends BaseSecurityCheck {
       this.state.biometricStatus = biometricStatus
       this.updateProgress(SecurityCheckStep.BIOMETRIC_CHECK, 60)
 
-      return {
-        success: true,
-        data: biometricStatus,
+      // Return success only if biometric authentication is available
+      if (isSupported) {
+        return {
+          success: true,
+          data: biometricStatus,
+        }
+      } else {
+        return {
+          success: false,
+          data: biometricStatus,
+          error: 'Biometric check failed'
+        }
       }
     } catch (error) {
       const biometricStatus: BiometricStatus = {
@@ -80,7 +89,7 @@ export class BiometricCheck extends BaseSecurityCheck {
     } else if (userAgent.includes('mac')) {
       return 'macos'
     } else if (userAgent.includes('linux')) {
-      return 'linux'
+      return 'unsupported' // Linux is not supported for biometric authentication
     }
 
     return 'unsupported'
@@ -98,7 +107,7 @@ export class BiometricCheck extends BaseSecurityCheck {
 
       // Check if the platform supports biometric authentication
       const isUserVerifyingAvailable =
-        await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
 
       if (!isUserVerifyingAvailable) {
         return false
@@ -142,7 +151,7 @@ export class BiometricCheck extends BaseSecurityCheck {
     try {
       // Windows Hello support
       const isWindowsHelloAvailable =
-        await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
       return isWindowsHelloAvailable
     } catch (error) {
       return false
@@ -156,7 +165,7 @@ export class BiometricCheck extends BaseSecurityCheck {
     try {
       // Touch ID support
       const isTouchIDAvailable =
-        await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
       return isTouchIDAvailable
     } catch (error) {
       return false
@@ -170,7 +179,7 @@ export class BiometricCheck extends BaseSecurityCheck {
     try {
       // Linux biometric support (limited)
       const isLinuxBiometricAvailable =
-        await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
       return isLinuxBiometricAvailable
     } catch (error) {
       return false

@@ -16,19 +16,24 @@
     />
     <link rel="stylesheet" href="popup.css" />
     <style>
-      html,
-      body {
-        width: 400px;
-        height: auto;
-        margin: 0;
-        padding: 0;
-        font-family: 'Shantell Sans', system-ui, sans-serif;
-        background: transparent;
-      }
+      html, body {
+          width: 400px;
+          height: 500px;
+          margin: 0;
+          padding: 0;
+          font-family: 'Shantell Sans', system-ui, sans-serif;
+          background: transparent;
+          overflow: hidden;
+        }
 
-      #app {
-        background: var(--color-surface);
-      }
+        #app {
+          background: var(--color-surface);
+          height: 100%;
+          overflow: hidden;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
     </style>
   </head>
   <body>

@@ -154,12 +154,14 @@ export class SecurityCheckOrchestrator {
         hasPermissionsPolicy: false,
       },
       cryptoStatus: {
+        isAvailable: false,
         hasSecureRandom: false,
         hasSubtleCrypto: false,
         hasKeyGeneration: false,
         hasEncryption: false,
       },
       storageStatus: {
+        isSecure: false,
         hasSecureStorage: false,
         hasEncryptedStorage: false,
         hasSessionStorage: false,
@@ -170,6 +172,37 @@ export class SecurityCheckOrchestrator {
         hasSensitiveDataInDOM: false,
         hasSecureUIElements: false,
         hasIsolatedStorage: false,
+      },
+      certificatePinningStatus: {
+        isPinned: false,
+        hasValidCertificate: false,
+        hasSecureConnection: false,
+        fingerprintVerified: false,
+      },
+      gdprComplianceStatus: {
+        isCompliant: false,
+        hasDataMinimization: false,
+        hasConsentManagement: false,
+        hasDataPortability: false,
+        hasRightToErasure: false,
+        hasPrivacyByDesign: false,
+      },
+      threatDetectionStatus: {
+        isSecure: false,
+        hasAnomalyDetection: false,
+        hasBehavioralAnalysis: false,
+        hasThreatIntelligence: false,
+        threatLevel: 'low',
+        detectedThreats: [],
+      },
+      soc2ComplianceStatus: {
+        isCompliant: false,
+        hasSecurityControls: false,
+        hasAvailabilityControls: false,
+        hasProcessingIntegrity: false,
+        hasConfidentialityControls: false,
+        hasPrivacyControls: false,
+        auditTrail: [],
       },
     }
   }
@@ -227,6 +260,8 @@ export class SecurityCheckOrchestrator {
       for (const check of this.checks) {
         if (check.isEnabled()) {
           try {
+            // Update current step before executing check
+            this.updateCurrentStep(check)
             await this.executeCheckWithTimeout(check)
             await this.delay() // Use config delay between checks
           } catch (error) {
@@ -247,6 +282,106 @@ export class SecurityCheckOrchestrator {
       this.handleError(error as Error)
       this.isRunning = false
       throw error
+    }
+  }
+
+  /**
+   * Simplified security check for faster execution
+   */
+  public async startQuickSecurityCheck(): Promise<SecurityCheckState> {
+    if (this.isRunning) {
+      throw new Error('Security check is already running')
+    }
+
+    try {
+      this.isRunning = true
+      this.state.isChecking = true
+      this.state.error = null
+      this.state.progress = 0
+
+      // Only run essential checks for faster completion
+      const essentialChecks = this.checks.filter(
+        (check) =>
+          check.isEnabled() &&
+          ['DeviceFingerprintCheck', 'CryptoCheck', 'StorageCheck'].includes(
+            check.constructor.name,
+          ),
+      )
+
+      for (const check of essentialChecks) {
+        try {
+          this.updateCurrentStep(check)
+          await this.executeCheckWithTimeout(check)
+          await this.delay()
+        } catch (error) {
+          console.warn(`${check.getName()} failed:`, error)
+          await this.delay()
+        }
+      }
+
+      this.state.currentStep = SecurityCheckStep.COMPLETED
+      this.state.progress = 100
+      this.state.isChecking = false
+      this.isRunning = false
+
+      return this.state
+    } catch (error) {
+      this.handleError(error as Error)
+      this.isRunning = false
+      throw error
+    }
+  }
+
+  /**
+   * Update current step based on the check being executed
+   */
+  private updateCurrentStep(check: BaseSecurityCheck): void {
+    const checkName = check.constructor.name
+    switch (checkName) {
+      case 'DeviceFingerprintCheck':
+        this.state.currentStep = SecurityCheckStep.DEVICE_FINGERPRINTING
+        break
+      case 'HSMCheck':
+        this.state.currentStep = SecurityCheckStep.HSM_VERIFICATION
+        break
+      case 'BiometricCheck':
+        this.state.currentStep = SecurityCheckStep.BIOMETRIC_CHECK
+        break
+      case 'ZKPCheck':
+        this.state.currentStep = SecurityCheckStep.ZKP_INITIALIZATION
+        break
+      case 'CSPCheck':
+        this.state.currentStep = SecurityCheckStep.CSP_VALIDATION
+        break
+      case 'TLSCheck':
+        this.state.currentStep = SecurityCheckStep.TLS_CHECK
+        break
+      case 'HeadersCheck':
+        this.state.currentStep = SecurityCheckStep.HEADERS_CHECK
+        break
+      case 'CryptoCheck':
+        this.state.currentStep = SecurityCheckStep.CRYPTO_CHECK
+        break
+      case 'StorageCheck':
+        this.state.currentStep = SecurityCheckStep.STORAGE_CHECK
+        break
+      case 'DOMSkimmingCheck':
+        this.state.currentStep = SecurityCheckStep.DOM_PROTECTION
+        break
+      case 'CertificatePinningCheck':
+        this.state.currentStep = SecurityCheckStep.CERTIFICATE_PINNING
+        break
+      case 'GDPRComplianceCheck':
+        this.state.currentStep = SecurityCheckStep.GDPR_COMPLIANCE
+        break
+      case 'ThreatDetectionCheck':
+        this.state.currentStep = SecurityCheckStep.THREAT_DETECTION
+        break
+      case 'SOC2ComplianceCheck':
+        this.state.currentStep = SecurityCheckStep.SOC2_COMPLIANCE
+        break
+      default:
+        console.warn('Unknown check type:', checkName)
     }
   }
 

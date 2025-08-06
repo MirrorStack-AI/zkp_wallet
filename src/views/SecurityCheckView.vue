@@ -93,12 +93,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import ContainerMain from '@/components/ContainerMain.vue'
 import IconLogo from '@/components/icons/IconLogo.vue'
 import ProgressIndicator from '@/components/ProgressIndicator.vue'
-import { SecurityCheckService } from '@/services/security-check'
+import { SecurityCheckOrchestrator as SecurityCheckService } from '@/services/security-check'
 import { SecurityCheckStep } from '@/services/security-check/types'
+
+// Define emits for component-based navigation
+const emit = defineEmits<{
+  'navigate-to-welcome': []
+  'navigate-to-authentication': []
+}>()
 
 const TROUBLESHOOTING_DELAY = 15000 // 15 seconds
 const STATE_UPDATE_INTERVAL = 50 // 50ms
@@ -297,9 +303,64 @@ const cleanupIntervals = () => {
   }
 }
 
+// Computed properties for E2E testing
+const securityCheckComplete = computed(() => {
+  return securityState.value.currentStep === SecurityCheckStep.COMPLETED
+})
+
+const securityError = computed(() => {
+  return securityState.value.currentStep === SecurityCheckStep.ERROR
+})
+
+const showRetryButton = computed(() => {
+  return securityState.value.currentStep === 'error'
+})
+
 // Cleanup on component unmount
 onUnmounted(() => {
   cleanupIntervals()
+})
+
+// Watch for security check completion and navigate appropriately
+watch(securityCheckComplete, async (isComplete) => {
+  if (isComplete) {
+    console.log('Security check completed, checking for pending authentication...')
+    
+    // Check if there's a pending authentication request
+    try {
+      if (window.chrome?.runtime?.sendMessage) {
+        const response = await window.chrome.runtime.sendMessage({
+          type: 'CHECK_PENDING_AUTH_REQUEST'
+        } as any)
+        
+        if (response && (response as any).hasPending) {
+          console.log('Security check completed, navigating to authentication view...')
+          // Use a small delay to ensure the UI updates properly
+          setTimeout(() => {
+            emit('navigate-to-authentication')
+          }, STATE_UPDATE_INTERVAL)
+        } else {
+          console.log('Security check completed, navigating to welcome view...')
+          // Use a small delay to ensure the UI updates properly
+          setTimeout(() => {
+            emit('navigate-to-welcome')
+          }, STATE_UPDATE_INTERVAL)
+        }
+      } else {
+        // Fallback to welcome view
+        console.log('Security check completed, navigating to welcome view...')
+        setTimeout(() => {
+          emit('navigate-to-welcome')
+        }, STATE_UPDATE_INTERVAL)
+      }
+    } catch (error) {
+      console.error('Error checking for pending auth request:', error)
+      // Fallback to welcome view
+      setTimeout(() => {
+        emit('navigate-to-welcome')
+      }, STATE_UPDATE_INTERVAL)
+    }
+  }
 })
 
 // Update step display based on actual security check state
@@ -620,19 +681,6 @@ const getStepStatus = (step: SecurityCheckStep): boolean | null => {
   // Return the stored result for completed steps
   return stepResults.value.get(step) ?? null
 }
-
-// Computed properties for E2E testing
-const securityCheckComplete = computed(() => {
-  return securityState.value.currentStep === 'completed'
-})
-
-const securityError = computed(() => {
-  return securityState.value.currentStep === 'error'
-})
-
-const showRetryButton = computed(() => {
-  return securityState.value.currentStep === 'error'
-})
 </script>
 
 <style scoped>
